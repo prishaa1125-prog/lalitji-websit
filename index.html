@@ -273,7 +273,13 @@
       left: 48px;
       z-index: 10;
       pointer-events: none;
-      transition: opacity 0.4s ease, transform 0.4s ease;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .hero-text.visible {
+      opacity: 1;
+      transform: translateY(0);
     }
     .hero-eyebrow {
       font-family: 'Manrope', sans-serif;
@@ -300,8 +306,35 @@
     }
 
     @media (max-width: 640px) {
-      .hero-text { left: 24px; right: 24px; text-align: left; }
-      .mid-text { right: 24px; left: 24px; text-align: left; }
+      .hero-text { left: 24px; right: 24px; text-align: left; bottom: 48px; }
+      .mid-text { right: 24px; left: 24px; text-align: left; bottom: 48px; }
+      .legacy-card {
+        padding: 24px 20px;
+      }
+      .wish-banner {
+        padding: 40px 24px;
+      }
+      .section-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .footer-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px;
+      }
+      .top-grad {
+        height: 120px;
+      }
+      .bottom-grad {
+        height: 130px;
+      }
+      /* NEW: center the man in the video on mobile and cover the screen */
+      #frame-video {
+        object-fit: cover;
+        object-position: 23% center;
+      }
     }
 
     /* ── GENERAL SECTIONS STYLE ── */
@@ -968,7 +1001,7 @@
   <div id="sticky-scene">
 
     <!-- VIDEO (autoplay loop background) -->
-    <video id="frame-video" autoplay muted loop playsinline preload="auto" src="./Man_walks_toward_camera_smiles_202606131613.mp4"></video>
+    <video id="frame-video" autoplay muted playsinline preload="auto" src="./Man_walks_toward_camera_smiles_202606131613.mp4"></video>
 
     <!-- OVERLAYS -->
     <div class="vignette"></div>
@@ -1087,7 +1120,7 @@
       <!-- Tribute 2 -->
       <div class="tribute-card">
         <div class="quote-mark">”</div>
-        <p class="tribute-text">"पापा, आपको 50वें जन्मदिन की बहुत-बहुत बधाई। आपकी सादगी और मार्गदर्शन हमारे लिए सबसे बड़ी प्रेरणा हैं।"</p>
+        <p class="tribute-text">"पापा, आपको जन्मदिन की बहुत-बहुत बधाई। आपकी सादगी और मार्गदर्शन हमारे लिए सबसे बड़ी प्रेरणा हैं।"</p>
         <div class="author-info">
           <div class="author-avatar">PC</div>
           <div class="author-details">
@@ -1199,6 +1232,7 @@
       if (video.currentTime < START_TIME) {
         video.currentTime = START_TIME;
       } else if (video.currentTime >= END_TIME) {
+        // Reset to start of loop range
         video.currentTime = START_TIME;
       }
 
@@ -1206,6 +1240,16 @@
       if (video.paused && loaderEl.classList.contains('hidden')) {
         video.play().catch(err => console.log("Play failed:", err));
       }
+
+      // Automatic text animation synced with video currentTime (loop duration = 3s)
+      // Debug console output (optional)
+      console.log('Video time:', video.currentTime.toFixed(2), 'rel:', (video.currentTime - START_TIME).toFixed(2));
+      const relativeTime = video.currentTime - START_TIME;
+      const isHeroVisible = relativeTime >= 0 && relativeTime < 1.5;
+      const isMidVisible = relativeTime >= 1.5 && relativeTime <= 3.0;
+
+      heroText.classList.toggle('visible', isHeroVisible);
+      midText.classList.toggle('visible', isMidVisible);
     }
     rafId = requestAnimationFrame(animate);
   }
@@ -1223,15 +1267,6 @@
 
     // scroll hint fades after first scroll
     scrollHint.style.opacity = scrolled > 60 ? '0' : '1';
-
-    // hero text: visible at 0–25%, fades out
-    const heroOpacity = Math.max(0, 1 - progress * 4);
-    heroText.style.opacity = heroOpacity;
-    heroText.style.transform = `translateY(${progress * -30}px)`;
-
-    // mid text: visible between 35%–70%
-    const midVisible = progress > 0.35 && progress < 0.72;
-    midText.classList.toggle('visible', midVisible);
 
     // nav bar scrolled state
     if (scrolled > 50) {
