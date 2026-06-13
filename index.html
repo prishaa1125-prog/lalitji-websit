@@ -378,6 +378,33 @@
       margin-bottom: 12px;
       font-weight: 700;
     }
+    
+    /* ── CARD GLOW & SPOTLIGHT EFFECT ── */
+    .legacy-card, .tribute-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .card-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        250px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
+        rgba(242, 202, 80, 0.09),
+        transparent 80%
+      );
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .legacy-card:hover .card-glow, .tribute-card:hover .card-glow {
+      opacity: 1;
+    }
+    .legacy-card > *:not(.card-glow), .tribute-card > *:not(.card-glow) {
+      position: relative;
+      z-index: 2;
+    }
+    
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -417,6 +444,11 @@
       color: var(--gold);
       margin-bottom: 24px;
       display: inline-block;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s ease;
+    }
+    .legacy-card:hover .card-icon {
+      transform: scale(1.15) rotate(6deg);
+      color: #ffd666;
     }
     .card-title {
       font-family: 'Playfair Display', serif;
@@ -562,6 +594,11 @@
       color: var(--gold);
       opacity: 0.15;
       line-height: 1;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+    }
+    .tribute-card:hover .quote-mark {
+      transform: translateY(-8px) scale(1.1) rotate(-8deg);
+      opacity: 0.25;
     }
     .tribute-text {
       font-family: 'Manrope', sans-serif;
@@ -591,6 +628,11 @@
       align-items: center;
       justify-content: center;
       letter-spacing: 0.5px;
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+    }
+    .tribute-card:hover .author-avatar {
+      transform: scale(1.1);
+      box-shadow: 0 0 15px rgba(242, 202, 80, 0.4);
     }
     .author-details {
       display: flex;
@@ -817,6 +859,22 @@
     }
     .nav-links a:hover::after {
       width: 100%;
+    }
+    
+    /* Shimmer effect on hover for buttons */
+    .nav-btn, .mobile-nav-btn {
+      position: relative;
+      overflow: hidden;
+    }
+    .nav-btn::after, .mobile-nav-btn::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+      transition: all 0.6s ease;
+    }
+    .nav-btn:hover::after, .mobile-nav-btn:hover::after {
+      left: 100%;
     }
     .nav-btn {
       font-family: 'Manrope', sans-serif;
@@ -1334,6 +1392,22 @@
   }
 
   preloadVideo();
+
+  /* ── INTERACTIVE MOUSE LIGHT GLOW EFFECT ── */
+  document.querySelectorAll('.legacy-card, .tribute-card').forEach(card => {
+    // Add the glow element dynamically so we don't have to edit all HTML blocks manually
+    const glow = document.createElement('div');
+    glow.className = 'card-glow';
+    card.appendChild(glow);
+
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
+    });
+  });
 </script>
 </body>
 </html>
