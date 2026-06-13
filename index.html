@@ -86,7 +86,8 @@
 
     /* ── SCROLL SPACER ── */
     #scroll-spacer {
-      height: 600vh; /* tall page for scroll room */
+      height: 100vh;
+      height: 100dvh;
       position: relative;
     }
 
@@ -225,6 +226,7 @@
       color: rgba(255,255,255,0.25);
       z-index: 100;
       font-family: 'Outfit', monospace;
+      display: none;
     }
 
     /* ── MID SECTION TEXT (appears mid-scroll) ── */
@@ -771,10 +773,10 @@
     }
     .nav-bar.scrolled {
       padding: 16px 48px;
-      background: rgba(18, 20, 20, 0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border-bottom: none;
     }
     .nav-logo-link {
       font-family: 'Playfair Display', serif;
@@ -1258,12 +1260,13 @@
   function onScroll() {
     const spacer = document.getElementById('scroll-spacer');
     const rect   = spacer.getBoundingClientRect();
-    const total  = spacer.offsetHeight - window.innerHeight;
     const scrolled = -rect.top;
-    const progress = Math.min(Math.max(scrolled / total, 0), 1);
 
-    // progress bar
-    progressBar.style.width = (progress * 100) + '%';
+    // progress bar based on entire page scroll
+    const totalDocScroll = document.documentElement.scrollHeight - window.innerHeight;
+    const docScrolled = window.scrollY || window.pageYOffset || 0;
+    const globalProgress = totalDocScroll > 0 ? Math.min(Math.max(docScrolled / totalDocScroll, 0), 1) : 0;
+    progressBar.style.width = (globalProgress * 100) + '%';
 
     // scroll hint fades after first scroll
     scrollHint.style.opacity = scrolled > 60 ? '0' : '1';
@@ -1274,11 +1277,6 @@
     } else {
       navBar.classList.remove('scrolled');
     }
-
-    // Update frame counter UI on scroll (simulate 94 frames based on scroll depth)
-    const frameIndex = Math.round(progress * 93) + 1;
-    const display = String(frameIndex).padStart(2, '0');
-    frameCounter.textContent = `${display} / 94`;
   }
 
   window.addEventListener('scroll', onScroll, { passive: true });
