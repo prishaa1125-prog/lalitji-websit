@@ -967,8 +967,8 @@
 <div id="scroll-spacer">
   <div id="sticky-scene">
 
-    <!-- VIDEO (scrubbed on scroll) -->
-    <video id="frame-video" playsinline muted preload="auto" src="./Man_walks_toward_camera_smiles_202606131613.mp4"></video>
+    <!-- VIDEO (autoplay loop background) -->
+    <video id="frame-video" autoplay muted loop playsinline preload="auto" src="./Man_walks_toward_camera_smiles_202606131613.mp4"></video>
 
     <!-- OVERLAYS -->
     <div class="vignette"></div>
@@ -1171,8 +1171,6 @@
   const midText      = document.getElementById('mid-text');
   const navBar       = document.querySelector('.nav-bar');
 
-  let targetTime = START_TIME;
-  let smoothTime = START_TIME;
   let lastSetTime = -1;
   let rafId = null;
 
@@ -1194,28 +1192,21 @@
     });
   });
 
-  /* ── SMOOTH LERP ── */
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
+  /* ── ANIMATE / LOOP VIDEO ENGINE ── */
   function animate() {
-    smoothTime = lerp(smoothTime, targetTime, 0.15);
-    
-    // round to 3 decimal places to avoid tiny updates
-    const roundedTime = Math.round(smoothTime * 1000) / 1000;
-    if (Math.abs(roundedTime - lastSetTime) > 0.01) {
-      if (video.readyState >= 1) { // metadata loaded
-        video.currentTime = roundedTime;
-        lastSetTime = roundedTime;
+    if (video.readyState >= 1) {
+      // Custom loop boundaries: loop between 2.0s and 5.0s
+      if (video.currentTime < START_TIME) {
+        video.currentTime = START_TIME;
+      } else if (video.currentTime >= END_TIME) {
+        video.currentTime = START_TIME;
+      }
+
+      // Ensure video is playing once loader is hidden
+      if (video.paused && loaderEl.classList.contains('hidden')) {
+        video.play().catch(err => console.log("Play failed:", err));
       }
     }
-
-    // Update frame counter UI (simulating 94 frames for 0 to 1 progress)
-    const progress = (smoothTime - START_TIME) / TIME_RANGE;
-    const clampedProgress = Math.min(Math.max(progress, 0), 1);
-    const frameIndex = Math.round(clampedProgress * 93) + 1;
-    const display = String(frameIndex).padStart(2, '0');
-    frameCounter.textContent = `${display} / 94`;
-
     rafId = requestAnimationFrame(animate);
   }
 
@@ -1226,8 +1217,6 @@
     const total  = spacer.offsetHeight - window.innerHeight;
     const scrolled = -rect.top;
     const progress = Math.min(Math.max(scrolled / total, 0), 1);
-
-    targetTime = START_TIME + progress * TIME_RANGE;
 
     // progress bar
     progressBar.style.width = (progress * 100) + '%';
@@ -1250,6 +1239,11 @@
     } else {
       navBar.classList.remove('scrolled');
     }
+
+    // Update frame counter UI on scroll (simulate 94 frames based on scroll depth)
+    const frameIndex = Math.round(progress * 93) + 1;
+    const display = String(frameIndex).padStart(2, '0');
+    frameCounter.textContent = `${display} / 94`;
   }
 
   window.addEventListener('scroll', onScroll, { passive: true });
@@ -1282,7 +1276,11 @@
       
       setTimeout(() => {
         loaderEl.classList.add('hidden');
-        // Initial draw and scroll handling
+        
+        // Autoplay the video
+        video.play().catch(err => console.log("Autoplay failed:", err));
+        
+        // Initial scroll positioning
         onScroll();
         animate();
       }, 400);
@@ -1295,6 +1293,7 @@
         loaderBar.style.width = '100%';
         loaderPct.textContent = '100%';
         loaderEl.classList.add('hidden');
+        video.play().catch(err => {});
         onScroll();
         animate();
       }
