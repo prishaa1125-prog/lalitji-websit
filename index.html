@@ -100,8 +100,8 @@
       overflow: hidden;
     }
 
-    /* ── CANVAS ── */
-    #frame-canvas {
+    /* ── VIDEO ── */
+    #frame-video {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -967,8 +967,8 @@
 <div id="scroll-spacer">
   <div id="sticky-scene">
 
-    <!-- CANVAS (frames drawn here) -->
-    <canvas id="frame-canvas"></canvas>
+    <!-- VIDEO (scrubbed on scroll) -->
+    <video id="frame-video" playsinline muted preload="auto" src="./Man_walks_toward_camera_smiles_202606131613.mp4"></video>
 
     <!-- OVERLAYS -->
     <div class="vignette"></div>
@@ -1156,15 +1156,11 @@
 
 
 <script>
-  const TOTAL_FRAMES = 94;
-  const frames = [];
-  let loadedCount = 0;
-  let currentFrame = 0;
-  let rafId = null;
-  let targetFrame = 0;
+  const START_TIME = 2.0;
+  const END_TIME = 5.0;
+  const TIME_RANGE = END_TIME - START_TIME;
 
-  const canvas = document.getElementById('frame-canvas');
-  const ctx    = canvas.getContext('2d');
+  const video = document.getElementById('frame-video');
   const loaderEl   = document.getElementById('loader');
   const loaderBar  = document.getElementById('loader-bar');
   const loaderPct  = document.getElementById('loader-pct');
@@ -1175,25 +1171,10 @@
   const midText      = document.getElementById('mid-text');
   const navBar       = document.querySelector('.nav-bar');
 
-  /* ── RESIZE CANVAS ── */
-  let lastWidth = window.innerWidth;
-  let lastHeight = window.innerHeight;
-  function resizeCanvas() {
-    const newWidth = window.innerWidth;
-    const newHeight = window.innerHeight;
-    
-    // Prevent resizing on mobile when only height changes (address bar scroll toggles)
-    if (newWidth === lastWidth && Math.abs(newHeight - lastHeight) < 120) {
-      return;
-    }
-    lastWidth = newWidth;
-    lastHeight = newHeight;
-    canvas.width  = newWidth;
-    canvas.height = newHeight;
-    drawFrame(currentFrame);
-  }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+  let targetTime = START_TIME;
+  let smoothTime = START_TIME;
+  let lastSetTime = -1;
+  let rafId = null;
 
   /* ── MOBILE MENU TOGGLE ── */
   const hamburger = document.getElementById('nav-hamburger');
@@ -1213,33 +1194,28 @@
     });
   });
 
-  /* ── DRAW FRAME ── */
-  function drawFrame(idx) {
-    const img = frames[idx];
-    if (!img || !img.complete) return;
-    const cw = canvas.width, ch = canvas.height;
-    const iw = img.naturalWidth, ih = img.naturalHeight;
-    const scale = Math.max(cw / iw, ch / ih);
-    const sw = iw * scale, sh = ih * scale;
-    const sx = (cw - sw) / 2;
-    const sy = 0; // anchor to top so head is never cropped
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.drawImage(img, sx, sy, sw, sh);
-  }
-
   /* ── SMOOTH LERP ── */
   function lerp(a, b, t) { return a + (b - a) * t; }
 
-  let smoothFrame = 0;
   function animate() {
-    smoothFrame = lerp(smoothFrame, targetFrame, 0.18);
-    const idx = Math.round(smoothFrame);
-    if (idx !== currentFrame) {
-      currentFrame = idx;
-      drawFrame(currentFrame);
-      const display = String(currentFrame + 1).padStart(2, '0');
-      frameCounter.textContent = `${display} / 94`;
+    smoothTime = lerp(smoothTime, targetTime, 0.15);
+    
+    // round to 3 decimal places to avoid tiny updates
+    const roundedTime = Math.round(smoothTime * 1000) / 1000;
+    if (Math.abs(roundedTime - lastSetTime) > 0.01) {
+      if (video.readyState >= 1) { // metadata loaded
+        video.currentTime = roundedTime;
+        lastSetTime = roundedTime;
+      }
     }
+
+    // Update frame counter UI (simulating 94 frames for 0 to 1 progress)
+    const progress = (smoothTime - START_TIME) / TIME_RANGE;
+    const clampedProgress = Math.min(Math.max(progress, 0), 1);
+    const frameIndex = Math.round(clampedProgress * 93) + 1;
+    const display = String(frameIndex).padStart(2, '0');
+    frameCounter.textContent = `${display} / 94`;
+
     rafId = requestAnimationFrame(animate);
   }
 
@@ -1251,7 +1227,7 @@
     const scrolled = -rect.top;
     const progress = Math.min(Math.max(scrolled / total, 0), 1);
 
-    targetFrame = Math.round(progress * (TOTAL_FRAMES - 1));
+    targetTime = START_TIME + progress * TIME_RANGE;
 
     // progress bar
     progressBar.style.width = (progress * 100) + '%';
@@ -1278,35 +1254,54 @@
 
   window.addEventListener('scroll', onScroll, { passive: true });
 
-  /* ── PRELOAD ALL FRAMES ── */
-  function pad(n) { return String(n).padStart(3, '0'); }
-
-  function preloadFrames() {
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
-      const img = new Image();
-      const idx = i;
-      img.onload = img.onerror = () => {
-        loadedCount++;
-        const pct = Math.round((loadedCount / TOTAL_FRAMES) * 100);
+  /* ── PRELOAD VIDEO ── */
+  function preloadVideo() {
+    // We start loader at 0%
+    let pct = 0;
+    const loadInterval = setInterval(() => {
+      if (pct < 90) {
+        pct += Math.floor(Math.random() * 8) + 4;
+        if (pct > 90) pct = 90;
         loaderBar.style.width = pct + '%';
         loaderPct.textContent = pct + '%';
+      }
+    }, 100);
 
-        // Draw first frame as soon as it's ready
-        if (idx === 0 && img.complete) drawFrame(0);
+    video.addEventListener('loadedmetadata', () => {
+      // Seek to start frame as soon as metadata is available
+      video.currentTime = START_TIME;
+    });
 
-        if (loadedCount === TOTAL_FRAMES) {
-          setTimeout(() => {
-            loaderEl.classList.add('hidden');
-            animate();
-          }, 400);
-        }
-      };
-      img.src = `./frames/ezgif-frame-${pad(i + 1)}.jpg`;
-      frames[i] = img;
-    }
+    video.addEventListener('seeked', function onFirstSeek() {
+      // Once we successfully seek to the start time (2.0s), we are ready to reveal the site
+      video.removeEventListener('seeked', onFirstSeek);
+      clearInterval(loadInterval);
+      
+      loaderBar.style.width = '100%';
+      loaderPct.textContent = '100%';
+      
+      setTimeout(() => {
+        loaderEl.classList.add('hidden');
+        // Initial draw and scroll handling
+        onScroll();
+        animate();
+      }, 400);
+    });
+
+    // Fallback if seeked doesn't trigger for some reason (e.g. video already loaded and seeked)
+    setTimeout(() => {
+      if (loaderEl && !loaderEl.classList.contains('hidden')) {
+        clearInterval(loadInterval);
+        loaderBar.style.width = '100%';
+        loaderPct.textContent = '100%';
+        loaderEl.classList.add('hidden');
+        onScroll();
+        animate();
+      }
+    }, 3000); // 3 seconds safety timeout
   }
 
-  preloadFrames();
+  preloadVideo();
 </script>
 </body>
 </html>
